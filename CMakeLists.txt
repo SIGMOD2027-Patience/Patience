@@ -29,3 +29,9 @@ add_test(NAME graph_matrix_tests COMMAND graph_matrix_tests)
 add_executable(all_graphs_metrics examples/all_graphs_metrics.cpp)
 target_link_libraries(all_graphs_metrics PRIVATE patience)
 target_compile_options(all_graphs_metrics PRIVATE -Wall -Wextra -Wpedantic)
+
+add_executable(mnist_hnsw experiments/mnist_hnsw.cpp)
+target_include_directories(mnist_hnsw SYSTEM PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/hnswlib)
+target_link_libraries(mnist_hnsw PRIVATE patience pthread)
+target_compile_options(mnist_hnsw PRIVATE -Wall -Wextra -Wpedantic -march=native)

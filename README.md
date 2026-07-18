@@ -40,6 +40,28 @@ Run all nine graph/metric combinations:
 ./build/all_graphs_metrics
 ```
 
+Run the reproducible MNIST experiment:
+
+```bash
+./build/mnist_hnsw datasets/mnist results/mnist_hnsw_m6_efc50
+```
+
+## MNIST HNSW Experiment
+
+The repository includes 5,000 MNIST base vectors and 1,000 candidate query vectors in `fvecs` format. Each vector contains 784 floating-point pixel values. The experiment computes exact L2 top-10 ground truth, builds HNSW with `M=6` and `efConstruction=50`, and uses an `efSearch=400` trace cap for calibrating the stopping policies.
+
+The program first calibrates global Adam-Patience, Hard Patience, and efSearch parameters on all 1,000 candidate queries. It then ranks queries by `min(Hard cost, efSearch cost) - Adam cost`, requiring the selected Adam result to have per-query Recall@10 at least 0.95, and retains the top 100. This is deliberately an Adam-favorable subset requested for the demonstration; it must not be interpreted as an unbiased MNIST benchmark.
+
+For those fixed 100 query IDs, each method independently selects its lowest-cost parameter point with aggregate Recall@10 at least 0.95:
+
+| Method | Parameter | Recall@10 | Mean distance computations |
+|---|---:|---:|---:|
+| Adam-Patience | Lambda=1.40 | 0.9520 | **127.53** |
+| Hard Patience | tau=16 | 0.9520 | 131.75 |
+| efSearch | ef=10 | 0.9600 | 129.76 |
+
+Adam-Patience uses 3.20% fewer distance computations than Hard Patience and 1.72% fewer than efSearch on this selected subset. The exact query IDs and machine-readable results are stored in `results/mnist_hnsw_m6_efc50/`.
+
 ## C++ API
 
 ```cpp
@@ -73,12 +95,22 @@ The generic graph layer accepts:
 
 For cosine search, vectors may be supplied directly because cosine normalization is computed by the metric implementation. MIPS minimizes negative inner product. L2 uses squared Euclidean distance.
 
+The bundled MNIST files use the standard `fvecs` row encoding: one signed 32-bit dimension value followed by that row's 784 `float32` components. Their SHA-256 checksums are:
+
+```text
+b4ca5da0217117b308ca3b219fc94016515e562b60477d102231a2f95cabec77  mnist_base_5k.fvecs
+2f97ca6265139d1ea4c7c94c1969f810ecd91d3c56b0506e0e5b56b3abaf9eb1  mnist_query_1k.fvecs
+```
+
 ## Project Structure
 
 - `include/patience.hpp`, `src/patience.cpp`: Hard Patience and Adam-Patience.
 - `include/graph_search.hpp`, `src/graph_search.cpp`: HNSW/NSG/Vamana traversal with L2, cosine, and MIPS.
 - `third_party/hnswlib/`: bundled HNSW implementation.
 - `examples/`: runnable HNSW and 3×3 support-matrix examples.
+- `experiments/mnist_hnsw.cpp`: real MNIST HNSW build, query selection, and recall/cost comparison.
+- `datasets/mnist/`: bundled MNIST base and query vectors.
+- `results/mnist_hnsw_m6_efc50/`: selected query IDs and Recall@10≈0.95 results.
 - `tests/`: C++ policy tests and all graph/metric combinations.
 - `index.html`: repository web-page crawler directive supplied with the artifact.
 

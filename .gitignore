@@ -1,4 +1,6 @@
-results/
+results/*
+!results/mnist_hnsw_m6_efc50/
+!results/mnist_hnsw_m6_efc50/**
 build/
 __pycache__/
 *.py[cod]
