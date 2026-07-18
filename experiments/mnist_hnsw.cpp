@@ -27,7 +27,7 @@ namespace {
 
 constexpr std::size_t kNeighbors = 10;
 constexpr std::size_t kSelected = 100;
-constexpr double kTargetRecall = 0.95;
+constexpr double kTargetRecall = 0.97;
 constexpr std::size_t kM = 6;
 constexpr std::size_t kEfConstruction = 50;
 constexpr std::size_t kTraceEf = 400;
@@ -220,7 +220,7 @@ void write_outputs(const fs::path& output_dir,
         ids << rank + 1 << ',' << selected[rank] << '\n';
     }
 
-    std::ofstream csv(output_dir / "recall_095_cost.csv");
+    std::ofstream csv(output_dir / "recall_097_cost.csv");
     csv << "method,parameter,mean_recall,mean_distance_computations\n";
     for (const Point* point : {&adam, &hard, &efsearch}) {
         csv << point->method << ',' << point->parameter << ','
@@ -233,7 +233,8 @@ void write_outputs(const fs::path& output_dir,
            << "Configuration: 5,000 base vectors, 1,000 candidate queries, 784 dimensions, "
               "k=10, M=6, efConstruction=50.\n\n"
            << "The 100 queries are selected by ranking Adam's per-query cost advantage over "
-              "the better of the globally calibrated Hard and efSearch configurations. "
+              "the better of the globally calibrated Hard and efSearch configurations, "
+              "while requiring Adam Recall@10 >= " << kTargetRecall << " per query. "
               "This is an intentionally favorable subset, not an unbiased benchmark.\n\n"
            << "| Method | Parameter | Recall@10 | Mean distance computations |\n"
            << "|---|---:|---:|---:|\n";
