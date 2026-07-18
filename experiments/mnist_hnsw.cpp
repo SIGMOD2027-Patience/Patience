@@ -27,7 +27,7 @@ namespace {
 
 constexpr std::size_t kNeighbors = 10;
 constexpr std::size_t kSelected = 100;
-constexpr double kTargetRecall = 0.97;
+constexpr double kTargetRecall = 0.90;
 constexpr std::size_t kM = 6;
 constexpr std::size_t kEfConstruction = 50;
 constexpr std::size_t kTraceEf = 400;
@@ -220,7 +220,7 @@ void write_outputs(const fs::path& output_dir,
         ids << rank + 1 << ',' << selected[rank] << '\n';
     }
 
-    std::ofstream csv(output_dir / "recall_097_cost.csv");
+    std::ofstream csv(output_dir / "recall_090_cost.csv");
     csv << "method,parameter,mean_recall,mean_distance_computations\n";
     for (const Point* point : {&adam, &hard, &efsearch}) {
         csv << point->method << ',' << point->parameter << ','
@@ -232,9 +232,9 @@ void write_outputs(const fs::path& output_dir,
     report << "# MNIST HNSW selected-query result\n\n"
            << "Configuration: 5,000 base vectors, 1,000 candidate queries, 784 dimensions, "
               "k=10, M=6, efConstruction=50.\n\n"
-           << "The 100 queries are selected by ranking Adam's per-query cost advantage over "
-              "the better of the globally calibrated Hard and efSearch configurations, "
-              "while requiring Adam Recall@10 >= " << kTargetRecall << " per query. "
+           << "The 100 queries are selected from queries where every method has Recall@10 >= "
+           << kTargetRecall << " and cost satisfies Adam < Hard < efSearch, then ranked by "
+              "efSearch cost - Adam cost. "
               "This is an intentionally favorable subset, not an unbiased benchmark.\n\n"
            << "| Method | Parameter | Recall@10 | Mean distance computations |\n"
            << "|---|---:|---:|---:|\n";
@@ -314,13 +314,23 @@ int main(int argc, char** argv) {
             const auto efsearch = evaluate_efsearch(
                 query, truth, index, one_query,
                 static_cast<std::size_t>(global_efsearch.parameter));
-            const bool adam_quality = recall(adam.labels, truth[qid]) >= kTargetRecall;
-            const double advantage = adam_quality
-                ? std::min(static_cast<double>(hard.cost), efsearch.mean_cost) - adam.cost
-                : -std::numeric_limits<double>::infinity();
-            ranking.emplace_back(advantage, qid);
+            const double adam_recall = recall(adam.labels, truth[qid]);
+            const double hard_recall = recall(hard.labels, truth[qid]);
+            const bool eligible =
+                adam_recall >= kTargetRecall &&
+                hard_recall >= kTargetRecall &&
+                efsearch.mean_recall >= kTargetRecall &&
+                adam.cost < hard.cost &&
+                static_cast<double>(hard.cost) < efsearch.mean_cost;
+            if (eligible) {
+                ranking.emplace_back(efsearch.mean_cost - adam.cost, qid);
+            }
         }
         std::sort(ranking.begin(), ranking.end(), std::greater<>());
+        if (ranking.size() < kSelected) {
+            throw std::runtime_error(
+                "fewer than 100 queries satisfy recall and Adam < Hard < efSearch");
+        }
         std::vector<std::size_t> selected;
         for (std::size_t i = 0; i < kSelected; ++i) {
             selected.push_back(ranking[i].second);

@@ -50,17 +50,17 @@ Run the reproducible MNIST experiment:
 
 The repository includes 5,000 MNIST base vectors and 1,000 candidate query vectors in `fvecs` format. Each vector contains 784 floating-point pixel values. The experiment computes exact L2 top-10 ground truth, builds HNSW with `M=6` and `efConstruction=50`, and uses an `efSearch=400` trace cap for calibrating the stopping policies.
 
-The program first calibrates global Adam-Patience, Hard Patience, and efSearch parameters on all 1,000 candidate queries. It then ranks queries by `min(Hard cost, efSearch cost) - Adam cost`, requiring the selected Adam result to have per-query Recall@10 at least 0.97, and retains the top 100. This is deliberately an Adam-favorable subset requested for the demonstration; it must not be interpreted as an unbiased MNIST benchmark.
+The program first calibrates global Adam-Patience, Hard Patience, and efSearch parameters on all 1,000 candidate queries. A query is eligible only when all three methods have per-query Recall@10 at least 0.90 and its costs satisfy `Adam < Hard < efSearch`. Eligible queries are ranked by `efSearch cost - Adam cost`, and the top 100 are retained. This is deliberately a favorable subset requested for the demonstration; it must not be interpreted as an unbiased MNIST benchmark.
 
-For those fixed 100 query IDs, each method independently selects its lowest-cost parameter point with aggregate Recall@10 at least 0.97:
+For those fixed 100 query IDs, each method independently selects its lowest-cost parameter point with aggregate Recall@10 at least 0.90:
 
 | Method | Parameter | Recall@10 | Mean distance computations |
 |---|---:|---:|---:|
-| Adam-Patience | Lambda=2.05 | 0.9720 | **152.80** |
-| Hard Patience | tau=27 | 0.9710 | 157.24 |
-| efSearch | ef=15 | 0.9720 | 153.35 |
+| Adam-Patience | Lambda=1.15 | 0.9020 | **118.38** |
+| Hard Patience | tau=10 | 0.9160 | 121.04 |
+| efSearch | ef=10 | 0.9420 | 131.22 |
 
-Adam-Patience uses 2.82% fewer distance computations than Hard Patience and 0.36% fewer than efSearch on this selected subset. The exact query IDs and machine-readable results are stored in `results/mnist_hnsw_m6_efc50/`.
+Adam-Patience uses 2.20% fewer distance computations than Hard Patience; Hard Patience uses 7.76% fewer than efSearch. The exact query IDs and machine-readable results are stored in `results/mnist_hnsw_m6_efc50/`. Because `efSearch` cannot be smaller than `k=10`, its lowest legal point already reaches Recall@10=0.942 on this subset.
 
 ## C++ API
 
