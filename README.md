@@ -1,21 +1,42 @@
-# Hard Patience and Adam-patience
+# Hard Patience and Adam-patience for HNSW
 
-This directory contains exactly two HNSW trace-replay early-termination methods:
+This repository is a self-contained C++17 implementation of two HNSW early-termination policies:
 
-- **Hard Patience**: stop after `tau` consecutive distance computations without a result change.
-- **Adam-patience**: track positive log-distance improvement with Adam-style first-moment and infinity-norm accumulators, and stop when the bias-corrected score falls below `lambda = 10^-Lambda`.
+- **Hard Patience** stops after `tau` distance computations without a top-k result change.
+- **Adam-patience** uses an Adam-style bias-corrected progress score with configurable `Lambda`, `beta1`, and `beta2`.
 
-## Files
+The repository vendors the complete HNSW implementation needed by the example. It does not depend on source files or trace files outside this directory.
 
-- `run_adam_patience_replay.py`: implementations, trace loading, parameter sweeps, and Hard-vs-Adam report generation.
-- `run_beta_sensitivity_matrix.py`: Adam-patience beta sensitivity experiment.
-- `tests/test_patience.py`: focused behavior and boundary tests for both methods.
+## Layout
 
-## Run
+- `include/patience.hpp`: public C++ API.
+- `src/patience.cpp`: complete Hard Patience and Adam-patience implementation.
+- `third_party/hnswlib/`: bundled HNSW index, distance spaces, brute-force index, and visited-list implementation.
+- `examples/hnsw_demo.cpp`: builds an HNSW index, collects a search trace, and runs both policies.
+- `tests/test_patience.cpp`: standalone C++ behavior and validation tests.
+
+## Build and test
 
 ```bash
-python run_adam_patience_replay.py --datasets deep1m
-python -m unittest discover -s tests -v
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+ctest --test-dir build --output-on-failure
 ```
 
-The replay script reads existing traces from `/home/kai1/hnsw/Cmp_results` and writes generated reports under `results/`.
+Run the complete HNSW example:
+
+```bash
+./build/hnsw_patience_demo
+```
+
+## C++ usage
+
+```cpp
+#include "patience.hpp"
+
+patience::SearchTrace trace = /* trace produced during HNSW search */;
+auto hard = patience::HardPatience(100).evaluate(trace);
+auto adam = patience::AdamPatience(3.0, 0.9, 0.99).evaluate(trace);
+```
+
+`AdamPatience(3.0)` means a raw stopping threshold of `10^-3`.
