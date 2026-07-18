@@ -1,0 +1,4 @@
+method,parameter,mean_recall,mean_distance_computations
+Adam-Patience,1.15,0.9020,125.12
+Hard Patience,11.00,0.9040,128.24
+efSearch,13.00,0.9040,129.44

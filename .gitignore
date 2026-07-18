@@ -1,6 +1,6 @@
 results/*
-!results/mnist_hnsw_m6_efc50/
-!results/mnist_hnsw_m6_efc50/**
+!results/mnist_hnsw_m4_efc50_efs30/
+!results/mnist_hnsw_m4_efc50_efs30/**
 build/
 __pycache__/
 *.py[cod]

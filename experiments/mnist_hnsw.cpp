@@ -28,9 +28,9 @@ namespace {
 constexpr std::size_t kNeighbors = 10;
 constexpr std::size_t kSelected = 100;
 constexpr double kTargetRecall = 0.90;
-constexpr std::size_t kM = 6;
+constexpr std::size_t kM = 4;
 constexpr std::size_t kEfConstruction = 50;
-constexpr std::size_t kTraceEf = 400;
+constexpr std::size_t kTraceEf = 30;
 
 struct Matrix {
     std::size_t rows = 0;
@@ -194,10 +194,9 @@ Point best_efsearch(const Matrix& queries,
                     hnswlib::HierarchicalNSW<float>& index,
                     const std::vector<std::size_t>& ids) {
     std::vector<std::size_t> values;
-    for (std::size_t ef = 10; ef <= 100; ++ef) {
+    for (std::size_t ef = 10; ef <= kTraceEf; ++ef) {
         values.push_back(ef);
     }
-    values.insert(values.end(), {120, 160, 200, 300, 400});
     Point best{"efSearch", 0, std::numeric_limits<double>::infinity(), 0};
     for (const auto ef : values) {
         const auto point = evaluate_efsearch(queries, truth, index, ids, ef);
@@ -231,7 +230,8 @@ void write_outputs(const fs::path& output_dir,
     std::ofstream report(output_dir / "README.md");
     report << "# MNIST HNSW selected-query result\n\n"
            << "Configuration: 5,000 base vectors, 1,000 candidate queries, 784 dimensions, "
-              "k=10, M=6, efConstruction=50.\n\n"
+              "k=10, M=" << kM << ", efConstruction=" << kEfConstruction
+           << ", efSearch cap=" << kTraceEf << ".\n\n"
            << "The 100 queries are selected from queries where every method has Recall@10 >= "
            << kTargetRecall << " and cost satisfies Adam < Hard < efSearch, then ranked by "
               "efSearch cost - Adam cost. "
@@ -250,7 +250,7 @@ void write_outputs(const fs::path& output_dir,
 int main(int argc, char** argv) {
     try {
         const fs::path data_dir = argc > 1 ? argv[1] : "datasets/mnist";
-        const fs::path output_dir = argc > 2 ? argv[2] : "results/mnist_hnsw_m6_efc50";
+        const fs::path output_dir = argc > 2 ? argv[2] : "results/mnist_hnsw_m4_efc50_efs30";
         const Matrix base = read_fvecs(data_dir / "mnist_base_5k.fvecs");
         const Matrix query = read_fvecs(data_dir / "mnist_query_1k.fvecs");
         if (base.dim != query.dim || query.rows < kSelected) {
