@@ -1,21 +1,26 @@
-# Hard Patience and Adam-patience for HNSW
+This repository contains the source code for the SIGMOD 2027 Round 3 submission **Adam-Patience: A Novel Paradigm Beyond Search Width for Efficient Approximate Vector Search on Graphs**.
 
-This repository is a self-contained C++17 implementation of two HNSW early-termination policies:
+# Adam-Patience
 
-- **Hard Patience** stops after `tau` distance computations without a top-k result change.
-- **Adam-patience** uses an Adam-style bias-corrected progress score with configurable `Lambda`, `beta1`, and `beta2`.
+---
 
-The repository vendors the complete HNSW implementation needed by the example. It does not depend on source files or trace files outside this directory.
+## Introduction
 
-## Layout
+Adam-Patience is an adaptive early-termination paradigm for graph-based approximate vector search. Instead of controlling search solely through a fixed search-width parameter, it monitors the normalized progress of the visible top-k result and terminates when additional graph exploration provides insufficient improvement.
 
-- `include/patience.hpp`: public C++ API.
-- `src/patience.cpp`: complete Hard Patience and Adam-patience implementation.
-- `third_party/hnswlib/`: bundled HNSW index, distance spaces, brute-force index, and visited-list implementation.
-- `examples/hnsw_demo.cpp`: builds an HNSW index, collects a search trace, and runs both policies.
-- `tests/test_patience.cpp`: standalone C++ behavior and validation tests.
+The project is written in C++17 and supports the following complete matrix:
 
-## Build and test
+| Graph index | L2 | Cosine | MIPS |
+|---|:---:|:---:|:---:|
+| HNSW | ✓ | ✓ | ✓ |
+| NSG | ✓ | ✓ | ✓ |
+| Vamana | ✓ | ✓ | ✓ |
+
+Hard Patience and Adam-Patience share a graph-independent trace representation. HNSW supplies its level-0 graph and the entry point obtained from upper-layer descent; NSG and Vamana supply their native adjacency lists and navigation points. The common search implementation performs the actual graph traversal, records top-k changes and distance-computation cost, and applies either stopping policy.
+
+## Usage
+
+Build and test the project:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -23,20 +28,62 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-Run the complete HNSW example:
+Run the bundled HNSW example:
 
 ```bash
 ./build/hnsw_patience_demo
 ```
 
-## C++ usage
+Run all nine graph/metric combinations:
 
-```cpp
-#include "patience.hpp"
-
-patience::SearchTrace trace = /* trace produced during HNSW search */;
-auto hard = patience::HardPatience(100).evaluate(trace);
-auto adam = patience::AdamPatience(3.0, 0.9, 0.99).evaluate(trace);
+```bash
+./build/all_graphs_metrics
 ```
 
-`AdamPatience(3.0)` means a raw stopping threshold of `10^-3`.
+## C++ API
+
+```cpp
+#include "graph_search.hpp"
+#include "patience.hpp"
+
+patience::GraphSearcher searcher(
+    patience::GraphKind::NSG,
+    patience::MetricKind::Cosine,
+    dimension,
+    vectors,
+    adjacency,
+    entry_point);
+
+auto search = searcher.search(query, k, search_width);
+auto hard = patience::HardPatience(100).evaluate(search.trace);
+auto adam = patience::AdamPatience(3.0, 0.9, 0.99).evaluate(search.trace);
+```
+
+`AdamPatience(3.0)` uses the raw stopping threshold `10^-3`.
+
+## Dataset Format
+
+The generic graph layer accepts:
+
+- a contiguous row-major `float` vector array;
+- vector dimension;
+- an adjacency list indexed by vector ID;
+- the graph navigation entry point;
+- `k` and the baseline search width.
+
+For cosine search, vectors may be supplied directly because cosine normalization is computed by the metric implementation. MIPS minimizes negative inner product. L2 uses squared Euclidean distance.
+
+## Project Structure
+
+- `include/patience.hpp`, `src/patience.cpp`: Hard Patience and Adam-Patience.
+- `include/graph_search.hpp`, `src/graph_search.cpp`: HNSW/NSG/Vamana traversal with L2, cosine, and MIPS.
+- `third_party/hnswlib/`: bundled HNSW implementation.
+- `examples/`: runnable HNSW and 3×3 support-matrix examples.
+- `tests/`: C++ policy tests and all graph/metric combinations.
+- `index.html`: repository web-page crawler directive supplied with the artifact.
+
+## Requirements
+
+- Linux
+- CMake 3.14 or newer
+- a C++17 compiler (GCC 9.5 or newer is supported)
